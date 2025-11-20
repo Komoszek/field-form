@@ -39,6 +39,7 @@ import {
   setValue,
 } from './utils/valueUtil';
 import type { BatchTask } from './BatchUpdate';
+import isEqual from '@rc-component/util/lib/isEqual';
 
 type FlexibleFieldEntity = Partial<FieldEntity>;
 
@@ -666,8 +667,27 @@ export class FormStore {
   };
 
   private registerField = (entity: FieldEntity) => {
-    this.fieldEntities.push(entity);
     const namePath = entity.getNamePath();
+
+    const field = this.getFields().find(({ name }) => isEqual(name, namePath));
+
+    if (field) {
+      const oldData = { errors: entity.getErrors(), warnings: entity.getWarnings() };
+      const newData = { errors: field.errors, warnings: field.warnings };
+
+      if (!isEqual(newData, oldData)) {
+        entity.onStoreChange(this.store, [namePath], {
+          type: 'setField',
+          data: {
+            name: namePath,
+            ...newData,
+          },
+          store: this.store,
+        });
+      }
+    }
+
+    this.fieldEntities.push(entity);
     this.batchNotifyWatch(namePath);
 
     // Set initial values
